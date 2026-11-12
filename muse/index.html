@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PARA Life OS — Organize Everything by Actionability</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* Inline copy of style.css so index.html works standalone even if copied alone */
+:root{--bg:#f6f5f1;--panel:#fff;--ink:#171717;--muted:#6b7280;--line:#e7e2d9;--proj:#0f766e;--area:#1d4ed8;--res:#b45309;--arch:#6b7280;--inbox:#dc2626;--radius:16px}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+a{color:var(--proj)}button{cursor:pointer}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">◐</span><div><strong>PARA Life OS</strong><span>Organize by actionability, not by subject</span></div></div>
+  <div class="searchwrap"><input id="searchInput" type="search" placeholder="Search everything — title, notes, tags…  ( / )" aria-label="Search"></div>
+  <div class="topactions"><button id="exportBtn" class="ghost">Export</button><label class="ghost filelabel">Import<input id="importFile" type="file" accept=".json" hidden></label><button id="newBtn" class="primary">+ New Item</button></div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="capture">
+      <label for="quickCapture">⚡ Quick Capture → Inbox</label>
+      <textarea id="quickCapture" rows="2" placeholder="Dump it here. Decide later. e.g. Idea: weekend in the mountains"></textarea>
+      <button id="captureBtn" class="primary full">Capture to Inbox</button>
+      <p class="hint">Inbox is not storage. It's a decision queue. Process it to zero.</p>
+    </div>
+    <nav id="nav">
+      <button data-view="dashboard" class="navitem active">🏠 Dashboard</button>
+      <button data-view="inbox" class="navitem">📥 Inbox <span class="badge" id="count-inbox">0</span></button>
+      <button data-view="projects" class="navitem proj">◆ Projects <span class="badge" id="count-projects">0</span></button>
+      <button data-view="areas" class="navitem area">⬢ Areas <span class="badge" id="count-areas">0</span></button>
+      <button data-view="resources" class="navitem res">⬣ Resources <span class="badge" id="count-resources">0</span></button>
+      <button data-view="archives" class="navitem arch">▭ Archives <span class="badge" id="count-archives">0</span></button>
+      <button data-view="all" class="navitem">☰ All Items</button>
+    </nav>
+    <div class="para-guide">
+      <h4>The PARA rule</h4>
+      <p><b>Projects</b> — active, with a goal + deadline.<br><b>Areas</b> — ongoing, with a standard to maintain.<br><b>Resources</b> — topics you care about, for later.<br><b>Archives</b> — inactive, out of sight, never deleted.</p>
+      <p class="hint">Ask: <em>“How actionable is this, right now?”</em> That answer is its home.</p>
+    </div>
+    <div class="sidefoot"><button id="seedBtn" class="ghost small">Restore demo data</button><button id="clearBtn" class="ghost small danger">Clear all data</button></div>
+  </aside>
+
+  <main class="main">
+    <section id="dashboardView">
+      <div class="hero">
+        <div><h1>Your life, sorted by what needs you next.</h1><p>Projects move. Areas hold steady. Resources wait usefully. Archives get out of the way. That's PARA — and this app enforces it gently, every day.</p></div>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="dashgrid">
+        <div class="panel"><h3>🔥 Focus — Due &amp; Overdue Projects</h3><div id="focusList"></div></div>
+        <div class="panel"><h3>📥 Inbox to Process</h3><div id="dashInbox"></div><p class="hint">Tip: drag the decision, not the item. Project? Area? Resource? Archive? Pick one and it leaves the Inbox.</p></div>
+        <div class="panel"><h3>✅ Recent Activity</h3><div id="recentList"></div></div>
+        <div class="panel"><h3>🧭 Weekly Review Checklist</h3><ol class="review"><li>Empty the Inbox to zero</li><li>Check every Project: is the next action still true?</li><li>Glance at Areas: any standard slipping?</li><li>Move finished / paused work to Archives</li><li>Promote one Resource into a Project if it earned it</li></ol><button class="primary" onclick="setView('inbox')">Start review → Process Inbox</button></div>
+      </div>
+    </section>
+
+    <section id="listView" hidden>
+      <div class="viewhead"><div><h2 id="viewTitle">Projects</h2><p id="viewSub"></p></div>
+        <div class="controls"><select id="sortSel"><option value="updated">Recently updated</option><option value="deadline">Deadline soonest</option><option value="title">Title A–Z</option><option value="progress">Progress</option></select><select id="tagFilter"><option value="">All tags</option></select></div>
+      </div>
+      <div id="cards" class="cards"></div>
+      <div id="emptyState" class="empty" hidden><h3>Nothing here yet.</h3><p>That's either perfect clarity — or your cue to capture something.</p><button class="primary" onclick="openEditor()">+ Create an item</button></div>
+    </section>
+  </main>
+</div>
+
+<!-- Editor Modal -->
+<div id="modal" class="modal" hidden><div class="modalcard">
+  <div class="modalhead"><h3 id="modalTitle">New Item</h3><button id="closeModal" class="ghost">✕</button></div>
+  <form id="editorForm">
+    <input type="hidden" id="f-id">
+    <label>Title *<input id="f-title" required placeholder="e.g. Launch portfolio site / Health / Photography tips"></label>
+    <div class="row"><label>PARA Bucket<select id="f-bucket"><option value="inbox">📥 Inbox</option><option value="projects">◆ Project</option><option value="areas">⬢ Area</option><option value="resources">⬣ Resource</option><option value="archives">▭ Archive</option></select></label>
+    <label>Tags (comma separated)<input id="f-tags" placeholder="work, health, learning"></label></div>
+    <label>Notes / Details<textarea id="f-notes" rows="4" placeholder="Context, links, ideas, decisions…"></textarea></label>
+    <div class="row"><label>Goal / Outcome (Projects)<input id="f-goal" placeholder="What does done look like?"></label><label>Deadline (Projects)<input id="f-deadline" type="date"></label></div>
+    <div class="row"><label>Standard to maintain (Areas)<input id="f-standard" placeholder="e.g. Exercise 3× / week, budget reviewed monthly"></label><label>Topic (Resources)<input id="f-topic" placeholder="e.g. Design, Cooking, Investing"></label></div>
+    <div class="row"><label>Next Action<input id="f-next" placeholder="The very next physical step"></label><label>Progress %<input id="f-progress" type="number" min="0" max="100" value="0"></label></div>
+    <label>Source / URL<input id="f-url" placeholder="https://…"></label>
+    <div class="tasksbox"><h4>Checklist / Tasks</h4><div id="taskList"></div><div class="row"><input id="newTask" placeholder="Add a task and press Enter"><button type="button" id="addTaskBtn" class="ghost">Add</button></div></div>
+    <div class="modalfoot"><label class="check"><input type="checkbox" id="f-pinned"> Pin to top</label><span style="flex:1"></span><button type="button" id="deleteBtn" class="ghost danger">Delete</button><button class="primary" type="submit">Save Item</button></div>
+  </form>
+</div></div>
+
+<footer class="footer">PARA Life OS • Built as a self-contained app — your data lives only in your browser (localStorage). Export regularly for backup. • Method: Tiago Forte's PARA</footer>
+
+<script src="app.js"></script>
+<script>
+/* Inline copy of app.js so index.html works standalone even if copied alone */
+(function(){
+"use strict";
+const KEY="para-life-os-v1";
+const BUCKETS={inbox:{label:"Inbox",icon:"📥",sub:"Unprocessed captures — decide and move them."},projects:{label:"Projects",icon:"◆",sub:"Active efforts with a goal and a deadline."},areas:{label:"Areas",icon:"⬢",sub:"Ongoing responsibilities with a standard to maintain."},resources:{label:"Resources",icon:"⬣",sub:"Topics and references you want to keep handy."},archives:{label:"Archives",icon:"▭",sub:"Inactive items — completed, paused, or no longer relevant."},all:{label:"All Items",icon:"☰",sub:"Everything, everywhere."},dashboard:{label:"Dashboard",icon:"🏠",sub:""}};
+let state={items:[],view:"dashboard",search:"",sort:"updated",tag:""};
+let editingTasks=[];
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function todayISO(){return new Date().toISOString().slice(0,10)}
+function seed(){const now=Date.now();return [
+ {id:uid(),title:"Plan a weekend trip",bucket:"projects",tags:["travel","family"],notes:"Pick dates, book stay, plan one great meal and one hike. Keep it simple.",goal:"Booked trip with itinerary shared",deadline:new Date(now+9*864e5).toISOString().slice(0,10),standard:"",topic:"",next:"Choose 2 candidate weekends",progress:35,url:"",pinned:true,tasks:[{t:"Choose dates",done:true},{t:"Book accommodation",done:false},{t:"Plan itinerary",done:false}],created:now-400000,updated:now-100000},
+ {id:uid(),title:"Redesign personal portfolio",bucket:"projects",tags:["work","design"],notes:"New case studies, cleaner home page, contact form that works.",goal:"Live site with 3 case studies",deadline:new Date(now+18*864e5).toISOString().slice(0,10),standard:"",topic:"",next:"Sketch home page wireframe",progress:20,url:"",pinned:false,tasks:[{t:"Audit old site",done:true},{t:"Write case studies",done:false}],created:now-300000,updated:now-90000},
+ {id:uid(),title:"Health & Fitness",bucket:"areas",tags:["health"],notes:"The standard is the system. Sleep, movement, food — reviewed weekly.",goal:"",deadline:"",standard:"Exercise 3×/week • Sleep 7h+ • Weekly weigh-in",topic:"",next:"Schedule this week's workouts",progress:60,url:"",pinned:true,tasks:[],created:now-500000,updated:now-80000},
+ {id:uid(),title:"Finances",bucket:"areas",tags:["money"],notes:"Bills on autopay. Budget reviewed on the 1st. No surprises.",goal:"",deadline:"",standard:"Review budget monthly • Keep 3-month buffer",topic:"",next:"Review subscriptions",progress:50,url:"",pinned:false,tasks:[],created:now-480000,updated:now-70000},
+ {id:uid(),title:"Photography techniques",bucket:"resources",tags:["learning","photo"],notes:"Composition notes, lighting setups, favourite photographers.",goal:"",deadline:"",standard:"",topic:"Photography",next:"",progress:0,url:"",pinned:false,tasks:[],created:now-200000,updated:now-60000},
+ {id:uid(),title:"Recipes to try",bucket:"resources",tags:["cooking"],notes:"Weeknight wins under 30 minutes.",goal:"",deadline:"",standard:"",topic:"Cooking",next:"",progress:0,url:"",pinned:false,tasks:[],created:now-180000,updated:now-50000},
+ {id:uid(),title:"Old apartment move — 2024",bucket:"archives",tags:["home"],notes:"Completed. Lease, receipts and photos filed here for reference.",goal:"Moved in",deadline:"",standard:"",topic:"",next:"",progress:100,url:"",pinned:false,tasks:[],created:now-900000,updated:now-900000},
+ {id:uid(),title:"Idea: learn piano again?",bucket:"inbox",tags:[],notes:"Saw a video. Am I serious or just nostalgic? Decide this week.",goal:"",deadline:"",standard:"",topic:"",next:"",progress:0,url:"",pinned:false,tasks:[],created:now-10000,updated:now-10000},
+]}
+function save(){localStorage.setItem(KEY,JSON.stringify(state.items))}
+function load(){try{const r=localStorage.getItem(KEY);state.items=r?JSON.parse(r):seed();if(!r)save();}catch(e){state.items=seed()}}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function daysUntil(d){if(!d)return null;return Math.ceil((new Date(d+"T12:00:00")-new Date(todayISO()+"T12:00:00"))/864e5)}
+function filtered(){let list=[...state.items];if(state.view!=="dashboard"&&state.view!=="all")list=list.filter(i=>i.bucket===state.view);if(state.view==="all"){}if(state.search){const q=state.search.toLowerCase();list=list.filter(i=>(i.title+" "+i.notes+" "+(i.tags||[]).join(" ")+" "+i.goal+" "+i.topic+" "+i.standard).toLowerCase().includes(q))}if(state.tag)list=list.filter(i=>(i.tags||[]).includes(state.tag));list.sort((a,b)=>{if(a.pinned!==b.pinned)return a.pinned?-1:1;if(state.sort==="title")return a.title.localeCompare(b.title);if(state.sort==="deadline")return (a.deadline||"9999").localeCompare(b.deadline||"9999");if(state.sort==="progress")return (b.progress||0)-(a.progress||0);return b.updated-a.updated});return list}
+function counts(){const c={};["inbox","projects","areas","resources","archives"].forEach(k=>c[k]=state.items.filter(i=>i.bucket===k).length);return c}
+function renderCounts(){const c=counts();Object.keys(c).forEach(k=>{const el=document.getElementById("count-"+k);if(el)el.textContent=c[k]})}
+function renderDashboard(){const c=counts();const overdue=state.items.filter(i=>i.bucket==="projects"&&i.deadline&&daysUntil(i.deadline)<0);const dueSoon=state.items.filter(i=>i.bucket==="projects"&&i.deadline&&daysUntil(i.deadline)>=0&&daysUntil(i.deadline)<=14);
+document.getElementById("stats").innerHTML=`<div><b>${state.items.length}</b><span>Total items</span></div><div><b>${c.projects}</b><span>Active projects</span></div><div><b>${c.inbox}</b><span>Inbox waiting</span></div><div><b>${overdue.length}</b><span>Overdue</span></div>`;
+const focus=[...overdue,...dueSoon].slice(0,6);document.getElementById("focusList").innerHTML=focus.length?focus.map(i=>`<div class="mini ${daysUntil(i.deadline)<0?"overdue":""}"><b>${esc(i.title)}</b><span>${daysUntil(i.deadline)<0?Math.abs(daysUntil(i.deadline))+"d overdue":daysUntil(i.deadline)===0?"Due today":"Due in "+daysUntil(i.deadline)+"d"} • ${i.progress||0}%</span><button onclick="openEditor('${i.id}')">Open</button></div>`).join(""):`<p class="hint">No deadlines in the next 14 days. Enjoy the calm — or start something.</p>`;
+const inbox=state.items.filter(i=>i.bucket==="inbox").slice(0,5);document.getElementById("dashInbox").innerHTML=inbox.length?inbox.map(i=>`<div class="mini"><b>${esc(i.title)}</b><button onclick="openEditor('${i.id}')">Process →</button></div>`).join(""):`<p>🎉 Inbox zero. Beautiful.</p>`;
+const recent=[...state.items].sort((a,b)=>b.updated-a.updated).slice(0,5);document.getElementById("recentList").innerHTML=recent.map(i=>`<div class="mini"><b>${esc(i.title)}</b><span>${BUCKETS[i.bucket]?.label||i.bucket} • ${new Date(i.updated).toLocaleDateString()}</span></div>`).join("")}
+function cardHTML(i){const d=daysUntil(i.deadline);const badge=i.bucket==="projects"&&i.deadline?`<span class="pill ${d<0?"red":d<=7?"amber":""}">${d<0?"Overdue "+Math.abs(d)+"d":d===0?"Due today":"Due "+i.deadline}</span>`:"";const done=(i.tasks||[]).filter(t=>t.done).length;const taskInfo=i.tasks&&i.tasks.length?`<div class="progress"><div style="width:${Math.round(done/i.tasks.length*100)}%"></div></div><small>${done}/${i.tasks.length} tasks • ${i.progress||0}% overall</small>`:i.bucket==="projects"?`<div class="progress"><div style="width:${i.progress||0}%"></div></div><small>${i.progress||0}% complete</small>`:"";
+return `<article class="card bucket-${i.bucket}"><div class="cardtop"><span class="pill bucketpill">${BUCKETS[i.bucket]?.label||i.bucket}</span>${i.pinned?`<span>📌</span>`:""}${badge}</div><h3>${esc(i.title)}</h3>${i.goal?`<p><b>Goal:</b> ${esc(i.goal)}</p>`:""}${i.standard?`<p><b>Standard:</b> ${esc(i.standard)}</p>`:""}${i.topic?`<p><b>Topic:</b> ${esc(i.topic)}</p>`:""}<p class="notes">${esc((i.notes||"").slice(0,180))}${(i.notes||"").length>180?"…":""}</p>${taskInfo}${i.next?`<p class="next">→ Next: ${esc(i.next)}</p>`:""}<div class="tags">${(i.tags||[]).map(t=>`<span class="tag">#${esc(t)}</span>`).join(" ")}</div><div class="cardactions"><button onclick="openEditor('${i.id}')">Edit</button><select onchange="moveItem('${i.id}',this.value)"><option value="">Move to…</option><option value="inbox">Inbox</option><option value="projects">Projects</option><option value="areas">Areas</option><option value="resources">Resources</option><option value="archives">Archives</option></select>${i.bucket!=="archives"?`<button onclick="moveItem('${i.id}','archives')">Archive</button>`:`<button onclick="moveItem('${i.id}','projects')">Reactivate</button>`}</div></article>`}
+function renderList(){const list=filtered();document.getElementById("viewTitle").textContent=state.search?`Search: “${state.search}”`:BUCKETS[state.view].label;document.getElementById("viewSub").textContent=BUCKETS[state.view].sub||"";document.getElementById("cards").innerHTML=list.map(cardHTML).join("");document.getElementById("emptyState").hidden=list.length>0;
+const tags=[...new Set(state.items.flatMap(i=>i.tags||[]))].sort();const sel=document.getElementById("tagFilter");const cur=sel.value;sel.innerHTML=`<option value="">All tags</option>`+tags.map(t=>`<option ${t===cur?"selected":""}>${esc(t)}</option>`).join("")}
+function render(){renderCounts();const dash=state.view==="dashboard";document.getElementById("dashboardView").hidden=!dash;document.getElementById("listView").hidden=dash;document.querySelectorAll(".navitem").forEach(b=>b.classList.toggle("active",b.dataset.view===state.view));if(dash)renderDashboard();else renderList()}
+window.setView=function(v){state.view=v;render()};window.moveItem=function(id,bucket){if(!bucket)return;const it=state.items.find(x=>x.id===id);if(!it)return;it.bucket=bucket;it.updated=Date.now();if(bucket==="archives"&&it.progress!==undefined&&it.bucket==="archives"){}save();render()};
+window.openEditor=function(id){const m=document.getElementById("modal");m.hidden=false;const f=id?state.items.find(x=>x.id===id):null;document.getElementById("modalTitle").textContent=f?"Edit Item":"New Item";document.getElementById("f-id").value=f?f.id:"";document.getElementById("f-title").value=f?f.title:"";document.getElementById("f-bucket").value=f?f.bucket:(state.view in BUCKETS&&state.view!=="dashboard"&&state.view!=="all"?state.view:"inbox");document.getElementById("f-tags").value=f?(f.tags||[]).join(", "):"";document.getElementById("f-notes").value=f?f.notes||"":"";document.getElementById("f-goal").value=f?f.goal||"":"";document.getElementById("f-deadline").value=f?f.deadline||"":"";document.getElementById("f-standard").value=f?f.standard||"":"";document.getElementById("f-topic").value=f?f.topic||"":"";document.getElementById("f-next").value=f?f.next||"":"";document.getElementById("f-progress").value=f?f.progress||0:0;document.getElementById("f-url").value=f?f.url||"":"";document.getElementById("f-pinned").checked=f?!!f.pinned:false;editingTasks=f?JSON.parse(JSON.stringify(f.tasks||[])):[];renderTasks();document.getElementById("deleteBtn").style.display=f?"":"none"};
+function renderTasks(){document.getElementById("taskList").innerHTML=editingTasks.map((t,idx)=>`<label class="taskrow"><input type="checkbox" ${t.done?"checked":""} onchange="toggleTask(${idx},this.checked)"><span class="${t.done?"done":""}">${esc(t.t)}</span><button type="button" onclick="removeTask(${idx})">✕</button></label>`).join("")}
+window.toggleTask=function(i,v){editingTasks[i].done=v;renderTasks()};window.removeTask=function(i){editingTasks.splice(i,1);renderTasks()};
+function addTask(){const v=document.getElementById("newTask").value.trim();if(!v)return;editingTasks.push({t:v,done:false});document.getElementById("newTask").value="";renderTasks()}
+document.getElementById("addTaskBtn").onclick=addTask;document.getElementById("newTask").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTask()}});
+document.getElementById("closeModal").onclick=()=>document.getElementById("modal").hidden=true;document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")e.target.hidden=true});
+document.getElementById("newBtn").onclick=()=>openEditor();document.querySelectorAll(".navitem").forEach(b=>b.onclick=()=>setView(b.dataset.view));
+document.getElementById("searchInput").addEventListener("input",e=>{state.search=e.target.value.trim();if(state.search&&state.view==="dashboard")state.view="all";render()});document.addEventListener("keydown",e=>{if(e.key==="/"&&document.activeElement.tagName!=="INPUT"&&document.activeElement.tagName!=="TEXTAREA"){e.preventDefault();document.getElementById("searchInput").focus()}});
+document.getElementById("sortSel").onchange=e=>{state.sort=e.target.value;render()};document.getElementById("tagFilter").onchange=e=>{state.tag=e.target.value;render()};
+document.getElementById("captureBtn").onclick=()=>{const v=document.getElementById("quickCapture").value.trim();if(!v)return;const lines=v.split("\n");state.items.unshift({id:uid(),title:lines[0].slice(0,120),bucket:"inbox",tags:[],notes:lines.slice(1).join("\n"),goal:"",deadline:"",standard:"",topic:"",next:"",progress:0,url:"",pinned:false,tasks:[],created:Date.now(),updated:Date.now()});document.getElementById("quickCapture").value="";save();render();alert("Captured to Inbox ✓ — process it from the Inbox view.")};
+document.getElementById("editorForm").addEventListener("submit",e=>{e.preventDefault();const id=document.getElementById("f-id").value;const data={title:document.getElementById("f-title").value.trim(),bucket:document.getElementById("f-bucket").value,tags:document.getElementById("f-tags").value.split(",").map(s=>s.trim()).filter(Boolean),notes:document.getElementById("f-notes").value,goal:document.getElementById("f-goal").value,deadline:document.getElementById("f-deadline").value,standard:document.getElementById("f-standard").value,topic:document.getElementById("f-topic").value,next:document.getElementById("f-next").value,progress:parseInt(document.getElementById("f-progress").value||"0",10),url:document.getElementById("f-url").value,pinned:document.getElementById("f-pinned").checked,tasks:editingTasks,updated:Date.now()};if(id){Object.assign(state.items.find(x=>x.id===id),data)}else{state.items.unshift({id:uid(),created:Date.now(),...data})}save();document.getElementById("modal").hidden=true;render()});
+document.getElementById("deleteBtn").onclick=()=>{const id=document.getElementById("f-id").value;if(id&&confirm("Delete this item permanently? Tip: Archive keeps it findable.")){state.items=state.items.filter(x=>x.id!==id);save();document.getElementById("modal").hidden=true;render()}};
+document.getElementById("exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify(state.items,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="para-life-os-export.json";a.click()};
+document.getElementById("importFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;file.text().then(t=>{try{const data=JSON.parse(t);if(Array.isArray(data)){state.items=data;save();render();alert("Imported ✓")}}catch(err){alert("Import failed: not a valid PARA export file.")}})});
+document.getElementById("seedBtn").onclick=()=>{if(confirm("Replace current data with demo data?")){state.items=seed();save();render()}};
+document.getElementById("clearBtn").onclick=()=>{if(confirm("Clear ALL data? Export first if you need it.")){state.items=[];save();render()}};
+load();render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+Live app (hosted version): Muse artifact "PARA Organizer" (slug: para-organizer) — open it from the artifact card presented with this entry. The hosted build was completed and verified live (audit passed, interactive flows probe-tested).
+
+Standalone live app (same entry, no hosting needed): index.html in this folder — open it in any browser and the full app runs immediately, no server, no build step, no credentials.
+
+Note: the artifact status check returned share.shared=false / no public share URL, so no public URL is recorded here rather than inventing one. The artifact card is the access route for the hosted version; index.html is the guaranteed standalone route.
